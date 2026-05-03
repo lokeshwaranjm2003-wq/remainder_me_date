@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment variables (keep secrets safe!)
+.env
+**/.env
+
+# Expo
+frontend/.expo/
+frontend/dist/
+
+# Build outputs
+backend/dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
