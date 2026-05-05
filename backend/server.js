@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const cron = require('node-cron');
+const axios = require('axios');
 const Reminder = require('./models/Reminder');
 const User = require('./models/User');
 
@@ -17,48 +18,121 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/reminders', require('./routes/reminders'));
+app.use('/share', require('./routes/share'));
 
-// Notification Cron Job (Runs every day at 8:00 AM)
-cron.schedule('0 8 * * *', async () => {
-  console.log('[CRON] Checking for reminders today...');
+// Test endpoint to trigger reminders manually
+app.get('/api/test-reminders', async (req, res) => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  await processReminders(tomorrow, 'Morning');
+  res.send('Reminders triggered for testing!');
+});
+
+const twilio = require('twilio');
+const twilioClient = (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) 
+  ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) 
+  : null;
+
+// Telegram Configuration
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+const sendTelegramMessage = async (message) => {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
   try {
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    await axios.post(url, {
+      chat_id: TELEGRAM_CHAT_ID,
+      text: message
+    });
+    console.log(`[TELEGRAM] Sent successfully`);
+  } catch (err) {
+    console.error(`[TELEGRAM Error]:`, err.message);
+  }
+};
 
-    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-    const endOfToday = new Date(today.setHours(23, 59, 59, 999));
-    
-    // In a real app, we check month & day, not the absolute year.
-    // Here we assume we fetch all reminders and filter them by month/date.
-    const allReminders = await Reminder.find().populate('userId');
+// Notification Helper Function
+const processReminders = async (checkDate, timeOfDay) => {
+  console.log(`[CRON] Processing reminders for ${timeOfDay}...`);
+  try {
+    const allReminders = await Reminder.find({ isDeleted: { $ne: true } }).populate('userId');
 
-    allReminders.forEach(reminder => {
-      if (!reminder.userId) return;
+    for (const reminder of allReminders) {
+      if (!reminder.userId) continue;
       const user = reminder.userId;
       const remDate = new Date(reminder.date);
       
-      const isToday = remDate.getDate() === today.getDate() && remDate.getMonth() === today.getMonth();
-      const isTomorrow = remDate.getDate() === tomorrow.getDate() && remDate.getMonth() === tomorrow.getMonth();
+      const isMatch = remDate.getDate() === checkDate.getDate() && remDate.getMonth() === checkDate.getMonth();
+      if (!isMatch) continue;
 
-      if (isToday) {
-        console.log(`[NOTIFICATION] Sending TODAY reminder to ${user.username} for ${reminder.personName}'s ${reminder.type}`);
-        // Send SMS / FCM Push Notification
-      } else if (isTomorrow) {
-        console.log(`[NOTIFICATION] Sending TOMORROW reminder to ${user.username} for ${reminder.personName}'s ${reminder.type}`);
-        // Send SMS / FCM Push Notification
+      let messageBody = '';
+      if (timeOfDay === 'Midnight') {
+        messageBody = `Hi ${user.username}! Today is ${reminder.personName}'s ${reminder.type} (${reminder.relationship}). Don't forget to wish them! 🎉`;
+      } else if (timeOfDay === 'Morning') {
+        messageBody = `Good morning ${user.username}! Tomorrow is ${reminder.personName}'s ${reminder.type} (${reminder.relationship}). Be prepared! 🎁`;
+      } else if (timeOfDay === 'Evening') {
+        messageBody = `Good evening ${user.username}! Just a reminder that tomorrow is ${reminder.personName}'s ${reminder.type} (${reminder.relationship}). Get ready! 🎈`;
       }
-    });
 
+      if (messageBody && twilioClient && process.env.TWILIO_PHONE_NUMBER) {
+        try {
+          const formattedPhone = user.phoneNumber.startsWith('+') ? user.phoneNumber : `+91${user.phoneNumber}`;
+          
+          await twilioClient.messages.create({
+            body: messageBody,
+            from: `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`,
+            to: `whatsapp:${formattedPhone}`
+          });
+          console.log(`[WHATSAPP] Sent to ${formattedPhone}`);
+          
+          await twilioClient.messages.create({
+            body: messageBody,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: formattedPhone
+          });
+          console.log(`[SMS] Sent to ${formattedPhone}`);
+          
+        } catch (msgErr) {
+          console.error(`[Message Error] to ${user.phoneNumber}:`, msgErr.message);
+        }
+      }
+      
+      // Telegram Notification (Option 1 - Central Admin)
+      if (messageBody) {
+        await sendTelegramMessage(`[Reminder Alert for ${user.username}]\n${messageBody}`);
+      }
+    }
   } catch (error) {
-    console.error('[CRON Error]', error);
+    console.error(`[CRON Error ${timeOfDay}]`, error);
   }
+};
+
+// 1. Midnight (12:00 AM) - Today's events
+cron.schedule('0 0 * * *', () => {
+  const today = new Date();
+  processReminders(today, 'Midnight');
+});
+
+// 2. Morning (6:00 AM) - Tomorrow's events
+cron.schedule('0 6 * * *', () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  processReminders(tomorrow, 'Morning');
+});
+
+// 3. Evening (6:00 PM) - Tomorrow's events again
+cron.schedule('0 18 * * *', () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  processReminders(tomorrow, 'Evening');
 });
 
 // Connect DB
-mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/reminders_db')
+mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/reminders_db', {
+  tlsAllowInvalidCertificates: true
+})
 .then(() => console.log('MongoDB connected'))
-.catch(err => console.log(err));
+.catch(err => console.error('MongoDB connection error:', err));
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

@@ -41,10 +41,43 @@ router.post('/', authMiddleware, async (req, res) => {
 // Get Reminders
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const reminders = await Reminder.find({ userId: req.user.id }).sort({ date: 1 });
+    const reminders = await Reminder.find({ userId: req.user.id, isDeleted: { $ne: true } }).sort({ date: 1 });
     res.status(200).json(reminders);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching reminders', error: error.message });
+  }
+});
+
+// Update Reminder
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { personName, date, type, relationship } = req.body;
+    const reminder = await Reminder.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { personName, date, type, relationship },
+      { new: true }
+    );
+    
+    if (!reminder) return res.status(404).json({ message: 'Reminder not found' });
+    res.status(200).json({ message: 'Reminder updated successfully', reminder });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating reminder', error: error.message });
+  }
+});
+
+// Soft Delete Reminder
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const reminder = await Reminder.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { isDeleted: true },
+      { new: true }
+    );
+    
+    if (!reminder) return res.status(404).json({ message: 'Reminder not found' });
+    res.status(200).json({ message: 'Reminder deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting reminder', error: error.message });
   }
 });
 

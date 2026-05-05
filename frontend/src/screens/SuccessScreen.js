@@ -1,14 +1,26 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Linking, Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
-// Real app uses lottie-react-native for fireworks animation here
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config';
 
 const SuccessScreen = ({ navigation }) => {
   const { t } = useTranslation();
+  const [referralCode, setReferralCode] = useState('');
+
+  useEffect(() => {
+    const fetchReferral = async () => {
+      const code = await AsyncStorage.getItem('referralCode');
+      if (code) setReferralCode(code);
+    };
+    fetchReferral();
+  }, []);
 
   const shareViaWhatsApp = () => {
-    // Generate a unique referral link (mocked)
-    const referralLink = "https://yourapp.com/invite/user123";
+    // Generate a unique referral link
+    // Replace API_BASE_URL with your actual domain when deploying
+    const baseUrl = API_BASE_URL.replace('/api/reminders', '').replace('/api/auth', '');
+    const referralLink = `${baseUrl}/share/${referralCode}`;
     const message = `Hey! Add your DOB/Wedding date so I never forget! Click here: ${referralLink}`;
     
     Linking.openURL(`whatsapp://send?text=${encodeURIComponent(message)}`).catch(() => {

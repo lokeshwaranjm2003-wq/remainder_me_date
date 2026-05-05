@@ -1,84 +1,102 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, KeyboardAvoidingView, ScrollView, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config';
+
+const API = `${API_BASE_URL}/api/auth`;
 
 const SignInScreen = ({ navigation }) => {
   const { t, i18n } = useTranslation();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
 
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'en' ? 'ta' : 'en');
   };
 
-  const handleLoginStep1 = async () => {
-    try {
-      const res = await axios.post('http://10.0.2.2:5000/api/auth/login', { username, password });
-      if (res.status === 206) {
-        Alert.alert('OTP Sent', `Mock OTP: ${res.data.mockOtp}`);
-        setStep(2);
-      } else if (res.status === 200) {
-        navigation.replace('Welcome', { username: res.data.user.username });
-      }
-    } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Login failed');
+  const handleLogin = async () => {
+    if (!username || !password) {
+      return Alert.alert('Error', 'Please enter username and password');
     }
-  };
-
-  const handleLoginStep2 = async () => {
+    setLoading(true);
     try {
-      const res = await axios.post('http://10.0.2.2:5000/api/auth/login', { username, password, otp });
-      if (res.status === 200) {
-        navigation.replace('Welcome', { username: res.data.user.username });
+      const res = await axios.post(`${API}/login`, { username, password });
+      
+      // Save token and user info to AsyncStorage
+      await AsyncStorage.setItem('token', res.data.token);
+      await AsyncStorage.setItem('userId', res.data.user.id);
+      await AsyncStorage.setItem('username', res.data.user.username);
+      if (res.data.user.referralCode) {
+        await AsyncStorage.setItem('referralCode', res.data.user.referralCode);
       }
+      if (res.data.user.walletBalance !== undefined) {
+        await AsyncStorage.setItem('walletBalance', res.data.user.walletBalance.toString());
+      }
+
+      navigation.replace('Welcome', { username: res.data.user.username });
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Login failed');
+      const msg = err.response?.data?.message || 'Login failed';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Error', msg);
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>{t('SignIn')}</Text>
-      
-      <TextInput style={styles.input} placeholder="Username" value={username} onChangeText={setUsername} />
-      <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
-      
-      {step === 2 && (
-        <TextInput style={styles.input} placeholder="Enter OTP" value={otp} onChangeText={setOtp} keyboardType="numeric" />
-      )}
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <Text style={styles.title}>{t('SignIn')}</Text>
 
-      <TouchableOpacity 
-        style={styles.button} 
-        onPress={step === 1 ? handleLoginStep1 : handleLoginStep2}
-      >
-        <Text style={styles.buttonText}>{t('SignIn')}</Text>
-      </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            value={username}
+            onChangeText={setUsername}
+            autoCapitalize="none"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+          <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('SignIn')}</Text>}
+          </TouchableOpacity>
 
-      <View style={styles.footer}>
-        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-          <Text style={styles.linkLeft}>{t('New_User')}</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={toggleLanguage}>
-          <Text style={styles.linkRight}>{t('How_To_SignUp')}</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+          <View style={styles.footer}>
+            <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+              <Text style={styles.linkLeft}>{t('New_User')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={toggleLanguage}>
+              <Text style={styles.linkRight}>EN / தமிழ்</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, justifyContent: 'center', backgroundColor: '#fff' },
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  container: { flexGrow: 1, padding: 20, justifyContent: 'center', backgroundColor: '#fff' },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  info: { textAlign: 'center', color: '#555', marginBottom: 15, fontSize: 14 },
   input: { borderWidth: 1, borderColor: '#ccc', padding: 12, borderRadius: 8, marginBottom: 15 },
-  button: { backgroundColor: '#000080', padding: 15, borderRadius: 8, alignItems: 'center' }, // Navy Blue
+  button: { backgroundColor: '#000080', padding: 15, borderRadius: 8, alignItems: 'center' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  resend: { textAlign: 'center', marginTop: 15, color: '#000080', fontWeight: 'bold' },
   footer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
-  linkLeft: { color: '#87CEFA', fontWeight: 'bold' }, // Light Sky Blue
-  linkRight: { color: '#333', textDecorationLine: 'underline' }
+  linkLeft: { color: '#87CEFA', fontWeight: 'bold' },
+  linkRight: { color: '#333', textDecorationLine: 'underline' },
 });
 
 export default SignInScreen;

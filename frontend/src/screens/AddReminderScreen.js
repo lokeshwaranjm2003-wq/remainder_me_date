@@ -1,73 +1,117 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator, Platform, KeyboardAvoidingView, ScrollView } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_BASE_URL } from '../config';
+
+const API = `${API_BASE_URL}/api/reminders`;
 
 const AddReminderScreen = ({ navigation }) => {
   const { t } = useTranslation();
   const [personName, setPersonName] = useState('');
   const [type, setType] = useState('DOB');
   const [relationship, setRelationship] = useState('Appa');
+  const [customRelationship, setCustomRelationship] = useState('');
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const relationships = ['Appa', 'Amma', 'Wife', 'Husband', 'Sister', 'Brother', 'Lover', 'Friend', 'Other'];
 
   const handleSave = async () => {
+    if (!personName) return Alert.alert('Error', 'Please enter a name');
+    setLoading(true);
     try {
-      // Mock saving - in real app, we use JWT token
-      // await axios.post('http://10.0.2.2:5000/api/reminders', { personName, date, type, relationship });
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        return Alert.alert('Error', 'Not logged in');
+      }
+
+      await axios.post(API, 
+        { personName, date, type, relationship: relationship === 'Other' ? customRelationship : relationship },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      
+      Alert.alert('Success', 'Reminder added successfully!');
       navigation.navigate('Success');
     } catch (err) {
-      Alert.alert('Error', 'Failed to save reminder');
+      Alert.alert('Error', err.response?.data?.message || 'Failed to save reminder');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Add New Reminder</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={styles.container}>
+          <Text style={styles.title}>Add New Reminder</Text>
 
-      <TextInput style={styles.input} placeholder="Person Name" value={personName} onChangeText={setPersonName} />
+          <TextInput style={styles.input} placeholder="Person Name" value={personName} onChangeText={setPersonName} />
 
-      <Text style={styles.label}>Type</Text>
-      <Picker selectedValue={type} onValueChange={setType} style={styles.picker}>
-        <Picker.Item label="DOB" value="DOB" />
-        <Picker.Item label="Wedding Day" value="Wedding" />
-      </Picker>
+          <Text style={styles.label}>Type</Text>
+          <Picker selectedValue={type} onValueChange={setType} style={styles.picker}>
+            <Picker.Item label="DOB" value="DOB" />
+            <Picker.Item label="Wedding Day" value="Wedding" />
+          </Picker>
 
-      <Text style={styles.label}>Relationship</Text>
-      <Picker selectedValue={relationship} onValueChange={setRelationship} style={styles.picker}>
-        {relationships.map(rel => <Picker.Item key={rel} label={rel} value={rel} />)}
-      </Picker>
+          <Text style={styles.label}>Relationship</Text>
+          <Picker selectedValue={relationship} onValueChange={setRelationship} style={styles.picker}>
+            {relationships.map(rel => <Picker.Item key={rel} label={rel} value={rel} />)}
+          </Picker>
 
-      <Text style={styles.label}>Date: {date.toLocaleDateString()}</Text>
-      <TouchableOpacity style={styles.dateButton} onPress={() => setShowPicker(true)}>
-        <Text style={styles.dateButtonText}>Pick Date</Text>
-      </TouchableOpacity>
+          {relationship === 'Other' && (
+            <TextInput 
+              style={styles.input} 
+              placeholder="Enter Custom Relationship" 
+              value={customRelationship} 
+              onChangeText={setCustomRelationship} 
+            />
+          )}
 
-      {showPicker && (
-        <DateTimePicker
-          value={date}
-          mode="date"
-          display="default"
-          onChange={(event, selectedDate) => {
-            setShowPicker(false);
-            if (selectedDate) setDate(selectedDate);
-          }}
-        />
-      )}
+          <Text style={styles.label}>Date: {date.toLocaleDateString()}</Text>
+          {Platform.OS !== 'web' && (
+            <TouchableOpacity style={styles.dateButton} onPress={() => setShowPicker(true)}>
+              <Text style={styles.dateButtonText}>Pick Date</Text>
+            </TouchableOpacity>
+          )}
 
-      <TouchableOpacity style={styles.button} onPress={handleSave}>
-        <Text style={styles.buttonText}>{t('Remember_Me')}</Text>
-      </TouchableOpacity>
-    </View>
+          {Platform.OS === 'web' ? (
+            React.createElement('input', {
+              type: 'date',
+              value: date.toISOString().split('T')[0],
+              onChange: (e) => setDate(new Date(e.target.value)),
+              style: { padding: 10, marginBottom: 20, borderRadius: 5, border: '1px solid #ccc', width: '100%', fontSize: 16 }
+            })
+          ) : showPicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                setShowPicker(false);
+                if (event.type === 'set' && selectedDate) setDate(selectedDate);
+              }}
+            />
+          )}
+
+          <TouchableOpacity style={styles.button} onPress={handleSave} disabled={loading}>
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('Remember_Me')}</Text>}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#fff' },
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  container: { flexGrow: 1, padding: 20, backgroundColor: '#fff' },
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
   input: { borderWidth: 1, borderColor: '#ccc', padding: 12, borderRadius: 8, marginBottom: 15 },
   label: { fontSize: 16, fontWeight: 'bold', marginBottom: 5, marginTop: 10 },
