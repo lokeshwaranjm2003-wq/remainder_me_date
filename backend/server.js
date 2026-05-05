@@ -20,6 +20,11 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/reminders', require('./routes/reminders'));
 app.use('/share', require('./routes/share'));
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.send('Backend is running successfully! 🚀');
+});
+
 // Test endpoint to trigger reminders manually
 app.get('/api/test-reminders', async (req, res) => {
   const tomorrow = new Date();
