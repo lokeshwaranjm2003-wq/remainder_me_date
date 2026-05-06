@@ -252,6 +252,9 @@
           <label>Enter 6-digit OTP</label>
           <input type="text" id="otpInput" maxlength="6" required>
         </div>
+        <div style="text-align: right; margin-bottom: 15px;">
+          <span class="link-text" style="font-size: 0.85rem;" onclick="resendOtp()" id="resendOtpText">Resend OTP</span>
+        </div>
         <button type="submit" class="btn" id="verifyOtpBtn">Verify & Sign Up</button>
       </form>
       <div class="text-center">
@@ -390,6 +393,49 @@
       btn.innerText = 'Request OTP';
       btn.disabled = false;
     });
+
+    async function resendOtp() {
+      if (!pendingRegData) return;
+      const resendBtn = document.getElementById('resendOtpText');
+      resendBtn.innerText = 'Sending...';
+      resendBtn.style.pointerEvents = 'none';
+      resendBtn.style.color = '#999';
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/send-otp`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ email: pendingRegData.email, phoneNumber: pendingRegData.phoneNumber })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          showToast("OTP Resent successfully!");
+          let seconds = 30;
+          resendBtn.innerText = `Wait ${seconds}s`;
+          const timer = setInterval(() => {
+            seconds--;
+            resendBtn.innerText = `Wait ${seconds}s`;
+            if (seconds <= 0) {
+              clearInterval(timer);
+              resendBtn.innerText = 'Resend OTP';
+              resendBtn.style.pointerEvents = 'auto';
+              resendBtn.style.color = 'var(--primary)';
+            }
+          }, 1000);
+        } else {
+          showToast(data.message || "Failed to resend OTP");
+          resendBtn.innerText = 'Resend OTP';
+          resendBtn.style.pointerEvents = 'auto';
+          resendBtn.style.color = 'var(--primary)';
+        }
+      } catch (err) {
+        showToast("Network error");
+        resendBtn.innerText = 'Resend OTP';
+        resendBtn.style.pointerEvents = 'auto';
+        resendBtn.style.color = 'var(--primary)';
+      }
+    }
 
     document.getElementById('otpForm').addEventListener('submit', async (e) => {
       e.preventDefault();
