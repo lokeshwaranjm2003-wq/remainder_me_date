@@ -1,7 +1,14 @@
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
+// ✅ After Render deploy, paste your Render URL here:
+// Example: 'https://remainder-backend-xxxx.onrender.com'
+export const DEPLOYED_BACKEND_URL = 'http://localhost:5000'; // <-- Change this after deploy!
+
 const getApiUrl = () => {
+  // If deployed URL is set (not localhost), always use it
+  if (!DEPLOYED_BACKEND_URL.includes('localhost')) return DEPLOYED_BACKEND_URL;
+
   // Use localhost for Web testing
   if (Platform.OS === 'web') return 'http://localhost:5000';
   
@@ -16,3 +23,6 @@ const getApiUrl = () => {
 };
 
 export const API_BASE_URL = getApiUrl();
+
+// Share links always use the deployed public URL
+export const SHARE_BASE_URL = DEPLOYED_BACKEND_URL;
