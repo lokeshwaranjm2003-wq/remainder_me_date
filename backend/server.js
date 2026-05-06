@@ -14,6 +14,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+app.use(express.static('public')); // Serve static files for Web UI
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -22,7 +23,7 @@ app.use('/share', require('./routes/share'));
 
 // Root endpoint
 app.get('/', (req, res) => {
-  res.send('Backend is running successfully! 🚀');
+  res.sendFile(__dirname + '/public/index.html');
 });
 
 // Test endpoint to trigger reminders manually

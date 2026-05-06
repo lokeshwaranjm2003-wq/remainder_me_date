@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RemindMe - Never Forget a Special Day</title>
+  <!-- Google Fonts for stylish "Thank You" -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Inter:wght@400;600;700&family=Mukta+Malar:wght@400;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --primary: #4CAF50;
+      --primary-dark: #43A047;
+      --secondary: #FF4081;
+      --bg: #f5f7fa;
+      --card-bg: #ffffff;
+      --text: #333333;
+      --text-light: #666666;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', 'Mukta Malar', sans-serif;
+    }
+    
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      width: 100%;
+      max-width: 450px;
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .view {
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+    
+    .view.active {
+      display: block;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    h1 {
+      font-size: 1.8rem;
+      color: var(--primary);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+    
+    input:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.3s;
+      margin-top: 10px;
+    }
+    
+    .btn:hover {
+      background: var(--primary-dark);
+    }
+    
+    .link-text {
+      color: var(--primary);
+      text-decoration: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    
+    .text-center {
+      text-align: center;
+      margin-top: 15px;
+      font-size: 0.9rem;
+    }
+    
+    /* Welcome View Styles */
+    .welcome-container {
+      text-align: center;
+    }
+    
+    .lang-toggle {
+      display: inline-block;
+      padding: 6px 12px;
+      background: #eee;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    
+    .welcome-message {
+      font-size: 1.2rem;
+      line-height: 1.6;
+      margin-bottom: 30px;
+      color: #444;
+    }
+    
+    .stylish-thank-you {
+      font-family: 'Dancing Script', cursive;
+      font-size: 3rem;
+      color: var(--secondary);
+      margin-bottom: 30px;
+    }
+    
+    /* Dashboard Styles */
+    .share-box {
+      background: #f0fdf4;
+      border: 2px dashed var(--primary);
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      margin: 20px 0;
+      word-break: break-all;
+    }
+    
+    .share-link {
+      font-weight: bold;
+      color: var(--primary-dark);
+      font-size: 1.1rem;
+    }
+    
+    #toast {
+      visibility: hidden;
+      min-width: 250px;
+      background-color: #333;
+      color: #fff;
+      text-align: center;
+      border-radius: 8px;
+      padding: 12px;
+      position: fixed;
+      z-index: 1;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 1rem;
+    }
+
+    #toast.show {
+      visibility: visible;
+      animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- LOGIN VIEW -->
+    <div id="loginView" class="view active">
+      <h1>Welcome Back</h1>
+      <form id="loginForm">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="loginUsername" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit" class="btn" id="loginBtn">Sign In</button>
+      </form>
+      <div class="text-center">
+        Don't have an account? <span class="link-text" onclick="switchView('registerView')">Sign Up</span>
+      </div>
+    </div>
+
+    <!-- REGISTER VIEW -->
+    <div id="registerView" class="view">
+      <h1>Create Account</h1>
+      <form id="registerForm">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="regUsername" required>
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="regEmail" required>
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="tel" id="regPhone" placeholder="+919876543210" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="regPassword" required>
+        </div>
+        <button type="submit" class="btn" id="requestOtpBtn">Request OTP</button>
+      </form>
+      <div class="text-center">
+        Already have an account? <span class="link-text" onclick="switchView('loginView')">Sign In</span>
+      </div>
+    </div>
+
+    <!-- OTP VIEW -->
+    <div id="otpView" class="view">
+      <h1>Verify OTP</h1>
+      <p class="text-center" style="margin-bottom: 20px; color: var(--text-light);">We've sent an OTP to your email.</p>
+      <form id="otpForm">
+        <div class="form-group">
+          <label>Enter 6-digit OTP</label>
+          <input type="text" id="otpInput" maxlength="6" required>
+        </div>
+        <button type="submit" class="btn" id="verifyOtpBtn">Verify & Sign Up</button>
+      </form>
+      <div class="text-center">
+        <span class="link-text" onclick="switchView('registerView')">Go Back</span>
+      </div>
+    </div>
+
+    <!-- WELCOME VIEW -->
+    <div id="welcomeView" class="view">
+      <div class="welcome-container">
+        <div class="lang-toggle" onclick="toggleLanguage()">🌐 English / தமிழ்</div>
+        
+        <div id="msgEn">
+          <p class="welcome-message">
+            Don't feel bad if you can't remember your favorite person's birthday and wedding day, this app will be useful for you. No more misunderstandings in your relationship!
+          </p>
+          <div class="stylish-thank-you">Thank You</div>
+        </div>
+        
+        <div id="msgTa" style="display:none;">
+          <p class="welcome-message">
+            உங்களுக்கு பிடித்தவர்களின் பிறந்தநாள் மற்றும் திருமண நாளை நியாபகம் வைத்துக்கொள்ள முடியவில்லை என்று கவலைப்படாதீர்கள், இந்த செயலி உங்களுக்கு பயனுள்ளதாக இருக்கும். இனி உங்கள் உறவுகளில் மனஸ்தாபம் வராது!
+          </p>
+          <div class="stylish-thank-you" style="font-family: 'Mukta Malar', sans-serif; font-weight: 700;">நன்றி</div>
+        </div>
+
+        <button class="btn" onclick="proceedToDashboard()">Done</button>
+      </div>
+    </div>
+
+    <!-- DASHBOARD VIEW -->
+    <div id="dashboardView" class="view">
+      <h1 id="dashName">Hello!</h1>
+      <p class="text-center">Share your unique link with friends and family so they can enter their special dates.</p>
+      
+      <div class="share-box">
+        <p style="margin-bottom: 5px; color: var(--text-light);">Your Public Link:</p>
+        <div class="share-link" id="shareLinkText">...</div>
+      </div>
+      
+      <button class="btn" onclick="copyShareLink()">Copy Link</button>
+      <button class="btn" style="background: #2196F3; margin-top: 15px;" onclick="fetchAndShowReminders()">Home (View Responses)</button>
+      <button class="btn" style="background: #f44336; margin-top: 15px;" onclick="logout()">Logout</button>
+    </div>
+
+    <!-- HOME PAGE VIEW (RESPONSES) -->
+    <div id="homePageView" class="view">
+      <h1 style="color: #2196F3;">Your Responses</h1>
+      <p class="text-center" style="margin-bottom: 20px;">These are the special dates filled by your loved ones.</p>
+      
+      <div id="remindersContainer" style="text-align: left;">
+        <div id="remindersList" style="max-height: 400px; overflow-y: auto; padding-right: 5px;"></div>
+      </div>
+
+      <button class="btn btn-outline" style="margin-top: 25px;" onclick="switchView('dashboardView')">← Back to Dashboard</button>
+    </div>
+
+  </div>
+
+  <div id="toast">Message here</div>
+
+  <script>
+    // State
+    let currentLang = 'en';
+    let currentUser = null;
+    let pendingRegData = null;
+    const API_BASE = window.location.origin + '/api';
+
+    // Check Login State on Load
+    window.onload = () => {
+      const token = localStorage.getItem('remindme_token');
+      const user = localStorage.getItem('remindme_user');
+      if (token && user) {
+        currentUser = JSON.parse(user);
+        setupDashboard();
+        switchView('dashboardView');
+      }
+    };
+
+    // UI Helpers
+    function switchView(viewId) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById(viewId).classList.add('active');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.innerText = msg;
+      toast.className = "show";
+      setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+    }
+
+    function toggleLanguage() {
+      if (currentLang === 'en') {
+        document.getElementById('msgEn').style.display = 'none';
+        document.getElementById('msgTa').style.display = 'block';
+        currentLang = 'ta';
+      } else {
+        document.getElementById('msgTa').style.display = 'none';
+        document.getElementById('msgEn').style.display = 'block';
+        currentLang = 'en';
+      }
+    }
+
+    // Auth Logic
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('requestOtpBtn');
+      btn.innerText = 'Sending...';
+      btn.disabled = true;
+
+      pendingRegData = {
+        username: document.getElementById('regUsername').value,
+        email: document.getElementById('regEmail').value,
+        phoneNumber: document.getElementById('regPhone').value,
+        password: document.getElementById('regPassword').value
+      };
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/send-otp`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ email: pendingRegData.email, phoneNumber: pendingRegData.phoneNumber })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          showToast("OTP sent to your email!");
+          switchView('otpView');
+        } else {
+          showToast(data.message || "Failed to send OTP");
+        }
+      } catch (err) {
+        showToast("Network error");
+      }
+      btn.innerText = 'Request OTP';
+      btn.disabled = false;
+    });
+
+    document.getElementById('otpForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('verifyOtpBtn');
+      btn.innerText = 'Verifying...';
+      btn.disabled = true;
+
+      const payload = { ...pendingRegData, otp: document.getElementById('otpInput').value };
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/register`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          showToast("Registered Successfully! Please Sign In.");
+          // Redirect to login page instead of auto-login
+          document.getElementById('loginForm').reset();
+          switchView('loginView');
+        } else {
+          showToast(data.message || "Invalid OTP");
+          btn.innerText = 'Verify & Sign Up';
+          btn.disabled = false;
+        }
+      } catch (err) {
+        showToast("Network error");
+        btn.innerText = 'Verify & Sign Up';
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('loginBtn');
+      btn.innerText = 'Signing In...';
+      btn.disabled = true;
+      
+      const u = document.getElementById('loginUsername').value;
+      const p = document.getElementById('loginPassword').value;
+      
+      // Pass true so that welcome greeting shows after manual login
+      await doLogin(u, p, true);
+      
+      btn.innerText = 'Sign In';
+      btn.disabled = false;
+    });
+
+    async function doLogin(username, password, isNewUser) {
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          localStorage.setItem('remindme_token', data.token);
+          localStorage.setItem('remindme_user', JSON.stringify(data.user));
+          currentUser = data.user;
+          
+          if (isNewUser) {
+            switchView('welcomeView');
+          } else {
+            setupDashboard();
+            switchView('dashboardView');
+          }
+        } else {
+          showToast(data.message || "Login failed");
+        }
+      } catch (err) {
+        showToast("Network error");
+      }
+    }
+
+    function proceedToDashboard() {
+      setupDashboard();
+      switchView('dashboardView');
+    }
+
+    function setupDashboard() {
+      document.getElementById('dashName').innerText = `Hello, ${currentUser.username}!`;
+      const link = `${window.location.origin}/share/${currentUser.referralCode}`;
+      document.getElementById('shareLinkText').innerText = link;
+    }
+
+    function copyShareLink() {
+      const link = document.getElementById('shareLinkText').innerText;
+      navigator.clipboard.writeText(link).then(() => {
+        showToast("Link copied to clipboard!");
+      });
+    }
+
+    function logout() {
+      localStorage.removeItem('remindme_token');
+      localStorage.removeItem('remindme_user');
+      currentUser = null;
+      document.getElementById('loginForm').reset();
+      document.getElementById('remindersContainer').style.display = 'none';
+      switchView('loginView');
+    }
+
+    async function fetchAndShowReminders() {
+      const list = document.getElementById('remindersList');
+      switchView('homePageView');
+      list.innerHTML = '<p class="text-center" style="color:#666;">Loading...</p>';
+      
+      try {
+        const token = localStorage.getItem('remindme_token');
+        const res = await fetch(`${API_BASE}/reminders`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+          if (data.length === 0) {
+            list.innerHTML = '<p class="text-center" style="color: #666; font-style: italic;">No dates filled by others yet.</p>';
+            return;
+          }
+          let html = '';
+          data.forEach(r => {
+            const dateStr = new Date(r.date).toDateString();
+            html += `
+              <div style="background: #fff; border: 1px solid #eee; padding: 12px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid #2196F3; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                <div style="font-weight: bold; font-size: 1.05rem; color: #333;">${r.personName}</div>
+                <div style="font-size: 0.9rem; color: #555; margin-top: 4px;">
+                  <b>${r.type}</b> • ${dateStr}
+                </div>
+                <div style="font-size: 0.85rem; color: #777; margin-top: 4px;">
+                  Rel: ${r.relationship} ${r.contactNumber ? `| Ph: ${r.contactNumber}` : ''}
+                </div>
+              </div>
+            `;
+          });
+          list.innerHTML = html;
+        } else {
+          list.innerHTML = '<p class="text-center" style="color: red;">Failed to load data.</p>';
+        }
+      } catch (err) {
+        list.innerHTML = '<p class="text-center" style="color: red;">Network error.</p>';
+      }
+    }
+  </script>
+</body>
+</html>

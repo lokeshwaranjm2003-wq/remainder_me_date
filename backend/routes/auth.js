@@ -92,10 +92,10 @@ router.post('/send-otp', async (req, res) => {
     // Store OTP with 10 minute expiry
     otpStore.set(email.toLowerCase().trim(), { otp, expiresAt: Date.now() + 10 * 60 * 1000 });
 
-    // Send both email and SMS in parallel
+    // Send OTP via email only (as requested by user)
     await Promise.all([
-      sendOtpEmail(email, otp),
-      sendOtpSms(phoneNumber, otp)
+      sendOtpEmail(email, otp)
+      // sendOtpSms(phoneNumber, otp) // Disabled based on user request
     ]);
 
     res.status(200).json({ message: `OTP sent to your Email and Mobile number.` });
@@ -174,10 +174,10 @@ router.post('/send-login-otp', async (req, res) => {
     const normalizedEmail = user.email.toLowerCase().trim();
     otpStore.set(normalizedEmail, { otp, expiresAt: Date.now() + 10 * 60 * 1000 });
 
-    // Send both email and SMS in parallel
+    // Send OTP via email only
     await Promise.all([
-      sendOtpEmail(user.email, otp),
-      sendOtpSms(user.phoneNumber, otp)
+      sendOtpEmail(user.email, otp)
+      // sendOtpSms(user.phoneNumber, otp)
     ]);
 
     res.status(200).json({ message: `OTP sent to your Email and Mobile number.` });
