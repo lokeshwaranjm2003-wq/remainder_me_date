@@ -6,6 +6,7 @@ const ReminderSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   type: { type: String, enum: ['DOB', 'Wedding'], required: true },
   relationship: { type: String, required: true },
+  contactNumber: { type: String }, // For future WhatsApp/Telegram notifications
   isDeleted: { type: Boolean, default: false }
 }, { timestamps: true });
 
