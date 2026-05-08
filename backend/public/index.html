@@ -236,31 +236,22 @@
           <label>Password</label>
           <input type="password" id="regPassword" required>
         </div>
-        <button type="submit" class="btn" id="requestOtpBtn">Request OTP</button>
+        <div class="form-group" style="background: #f0f0f0; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 15px;">
+          <label style="margin-bottom: 10px;">Type the characters below to prevent bots:</label>
+          <div style="display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px;">
+            <div id="captchaDisplay" style="font-size: 28px; font-weight: bold; letter-spacing: 8px; color: var(--primary); text-decoration: line-through; font-style: italic; user-select: none;"></div>
+            <span style="font-size: 24px; cursor: pointer;" onclick="generateCaptcha()">🔄</span>
+          </div>
+          <input type="text" id="regCaptcha" placeholder="Enter Captcha" required autocomplete="off">
+        </div>
+        <button type="submit" class="btn" id="registerBtn">Sign Up</button>
       </form>
       <div class="text-center">
         Already have an account? <span class="link-text" onclick="switchView('loginView')">Sign In</span>
       </div>
     </div>
 
-    <!-- OTP VIEW -->
-    <div id="otpView" class="view">
-      <h1>Verify OTP</h1>
-      <p class="text-center" style="margin-bottom: 20px; color: var(--text-light);">We've sent an OTP to your email.</p>
-      <form id="otpForm">
-        <div class="form-group">
-          <label>Enter 6-digit OTP</label>
-          <input type="text" id="otpInput" maxlength="6" required>
-        </div>
-        <div style="text-align: right; margin-bottom: 15px;">
-          <span class="link-text" style="font-size: 0.85rem;" onclick="resendOtp()" id="resendOtpText">Resend OTP</span>
-        </div>
-        <button type="submit" class="btn" id="verifyOtpBtn">Verify & Sign Up</button>
-      </form>
-      <div class="text-center">
-        <span class="link-text" onclick="switchView('registerView')">Go Back</span>
-      </div>
-    </div>
+
 
     <!-- WELCOME VIEW -->
     <div id="welcomeView" class="view">
@@ -320,11 +311,23 @@
     // State
     let currentLang = 'en';
     let currentUser = null;
-    let pendingRegData = null;
     const API_BASE = window.location.origin + '/api';
+    let currentCaptcha = '';
+
+    function generateCaptcha() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+      let result = '';
+      for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      currentCaptcha = result;
+      const captchaEl = document.getElementById('captchaDisplay');
+      if (captchaEl) captchaEl.innerText = result;
+    }
 
     // Check Login State on Load
     window.onload = () => {
+      generateCaptcha();
       const token = localStorage.getItem('remindme_token');
       const user = localStorage.getItem('remindme_user');
       if (token && user) {
@@ -362,88 +365,25 @@
     // Auth Logic
     document.getElementById('registerForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const btn = document.getElementById('requestOtpBtn');
-      btn.innerText = 'Sending...';
+      
+      const captchaInput = document.getElementById('regCaptcha').value;
+      if (captchaInput !== currentCaptcha) {
+        showToast("Incorrect Captcha. Please try again.");
+        generateCaptcha();
+        document.getElementById('regCaptcha').value = '';
+        return;
+      }
+
+      const btn = document.getElementById('registerBtn');
+      btn.innerText = 'Registering...';
       btn.disabled = true;
 
-      pendingRegData = {
+      const payload = {
         username: document.getElementById('regUsername').value,
         email: document.getElementById('regEmail').value,
         phoneNumber: document.getElementById('regPhone').value,
         password: document.getElementById('regPassword').value
       };
-
-      try {
-        const res = await fetch(`${API_BASE}/auth/send-otp`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ email: pendingRegData.email, phoneNumber: pendingRegData.phoneNumber })
-        });
-        const data = await res.json();
-        
-        if (res.ok) {
-          showToast("OTP sent to your email!");
-          switchView('otpView');
-        } else {
-          showToast(data.message || "Failed to send OTP");
-        }
-      } catch (err) {
-        showToast("Network error");
-      }
-      btn.innerText = 'Request OTP';
-      btn.disabled = false;
-    });
-
-    async function resendOtp() {
-      if (!pendingRegData) return;
-      const resendBtn = document.getElementById('resendOtpText');
-      resendBtn.innerText = 'Sending...';
-      resendBtn.style.pointerEvents = 'none';
-      resendBtn.style.color = '#999';
-
-      try {
-        const res = await fetch(`${API_BASE}/auth/send-otp`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ email: pendingRegData.email, phoneNumber: pendingRegData.phoneNumber })
-        });
-        const data = await res.json();
-        
-        if (res.ok) {
-          showToast("OTP Resent successfully!");
-          let seconds = 30;
-          resendBtn.innerText = `Wait ${seconds}s`;
-          const timer = setInterval(() => {
-            seconds--;
-            resendBtn.innerText = `Wait ${seconds}s`;
-            if (seconds <= 0) {
-              clearInterval(timer);
-              resendBtn.innerText = 'Resend OTP';
-              resendBtn.style.pointerEvents = 'auto';
-              resendBtn.style.color = 'var(--primary)';
-            }
-          }, 1000);
-        } else {
-          showToast(data.message || "Failed to resend OTP");
-          resendBtn.innerText = 'Resend OTP';
-          resendBtn.style.pointerEvents = 'auto';
-          resendBtn.style.color = 'var(--primary)';
-        }
-      } catch (err) {
-        showToast("Network error");
-        resendBtn.innerText = 'Resend OTP';
-        resendBtn.style.pointerEvents = 'auto';
-        resendBtn.style.color = 'var(--primary)';
-      }
-    }
-
-    document.getElementById('otpForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = document.getElementById('verifyOtpBtn');
-      btn.innerText = 'Verifying...';
-      btn.disabled = true;
-
-      const payload = { ...pendingRegData, otp: document.getElementById('otpInput').value };
 
       try {
         const res = await fetch(`${API_BASE}/auth/register`, {
@@ -455,19 +395,20 @@
         
         if (res.ok) {
           showToast("Registered Successfully! Please Sign In.");
-          // Redirect to login page instead of auto-login
-          document.getElementById('loginForm').reset();
+          document.getElementById('registerForm').reset();
+          generateCaptcha();
           switchView('loginView');
         } else {
-          showToast(data.message || "Invalid OTP");
-          btn.innerText = 'Verify & Sign Up';
-          btn.disabled = false;
+          showToast(data.message || "Registration failed");
+          generateCaptcha();
+          document.getElementById('regCaptcha').value = '';
         }
       } catch (err) {
         showToast("Network error");
-        btn.innerText = 'Verify & Sign Up';
-        btn.disabled = false;
       }
+      
+      btn.innerText = 'Sign Up';
+      btn.disabled = false;
     });
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
