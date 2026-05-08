@@ -9,38 +9,37 @@ const API = `${API_BASE_URL}/api/auth`;
 
 const SignUpScreen = ({ navigation }) => {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState({ username: '', email: '', phoneNumber: '', password: '', confirmPassword: '', otp: '', referralCode: '' });
+  const [formData, setFormData] = useState({ username: '', email: '', phoneNumber: '', password: '', confirmPassword: '', captchaInput: '', referralCode: '' });
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [captchaText, setCaptchaText] = useState('');
 
-  const handleSendOTP = async () => {
+  const generateCaptcha = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCaptchaText(result);
+  };
+
+  React.useEffect(() => {
+    generateCaptcha();
+  }, []);
+
+  const handleNextStep = () => {
     if (!formData.username || !formData.email || !formData.phoneNumber || !formData.password) {
       return Alert.alert('Error', 'Please fill all fields');
     }
     if (formData.password !== formData.confirmPassword) {
       return Alert.alert('Error', 'Passwords do not match');
     }
-    setLoading(true);
-    try {
-      const res = await axios.post(`${API}/send-otp`, {
-        email: formData.email,
-        phoneNumber: formData.phoneNumber
-      });
-      if (Platform.OS === 'web') window.alert(`OTP Sent ✅\n${res.data.message}`);
-      else Alert.alert('OTP Sent ✅', res.data.message);
-      setStep(2);
-    } catch (err) {
-      const msg = err.response?.data?.message || 'Failed to send OTP';
-      if (Platform.OS === 'web') window.alert(msg);
-      else Alert.alert('Error', msg);
-    } finally {
-      setLoading(false);
-    }
+    setStep(2);
   };
 
   const handleRegister = async () => {
-    if (!formData.otp || formData.otp.length !== 6) {
-      return Alert.alert('Error', 'Please enter the 6-digit OTP from your email');
+    if (!formData.captchaInput || formData.captchaInput !== captchaText) {
+      return Alert.alert('Error', 'Incorrect Captcha. Please try again.');
     }
     setLoading(true);
     try {
@@ -76,19 +75,22 @@ const SignUpScreen = ({ navigation }) => {
               <TextInput style={styles.input} placeholder="Password" value={formData.password} onChangeText={(text) => setFormData({...formData, password: text})} secureTextEntry />
               <TextInput style={styles.input} placeholder="Confirm Password" value={formData.confirmPassword} onChangeText={(text) => setFormData({...formData, confirmPassword: text})} secureTextEntry />
               <TextInput style={styles.input} placeholder="Referral Code (Optional)" value={formData.referralCode} onChangeText={(text) => setFormData({...formData, referralCode: text})} autoCapitalize="characters" />
-              <TouchableOpacity style={styles.button} onPress={handleSendOTP} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Send OTP to Email</Text>}
+              <TouchableOpacity style={styles.button} onPress={handleNextStep}>
+                <Text style={styles.buttonText}>Next</Text>
               </TouchableOpacity>
             </>
           ) : (
             <>
-              <Text style={styles.info}>📧 Check your email <Text style={{fontWeight:'bold'}}>{formData.email}</Text> for the 6-digit OTP</Text>
-              <TextInput style={styles.input} placeholder="Enter 6-digit OTP" value={formData.otp} onChangeText={(text) => setFormData({...formData, otp: text})} keyboardType="numeric" maxLength={6} />
+              <Text style={styles.info}>To prevent bots, please type the characters shown below:</Text>
+              <View style={styles.captchaContainer}>
+                <Text style={styles.captchaText} selectable={false}>{captchaText}</Text>
+                <TouchableOpacity onPress={generateCaptcha}>
+                  <Text style={styles.refreshCaptcha}>🔄</Text>
+                </TouchableOpacity>
+              </View>
+              <TextInput style={styles.input} placeholder="Enter Captcha" value={formData.captchaInput} onChangeText={(text) => setFormData({...formData, captchaInput: text})} autoCapitalize="none" autoCorrect={false} />
               <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('Done')}</Text>}
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSendOTP} disabled={loading} style={{ marginTop: 15 }}>
-                <Text style={{ textAlign: 'center', color: '#90EE90', fontWeight: 'bold', fontSize: 16 }}>Resend OTP</Text>
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{t('SignUp')}</Text>}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setStep(1)}>
                 <Text style={styles.resend}>← Go back</Text>
@@ -114,6 +116,9 @@ const styles = StyleSheet.create({
   button: { backgroundColor: '#4CAF50', padding: 15, borderRadius: 8, alignItems: 'center' },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   resend: { textAlign: 'center', marginTop: 15, color: '#4CAF50', fontWeight: 'bold' },
+  captchaContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 15, backgroundColor: '#f0f0f0', padding: 15, borderRadius: 8 },
+  captchaText: { fontSize: 28, fontWeight: 'bold', letterSpacing: 8, color: '#4CAF50', marginRight: 15, textDecorationLine: 'line-through', fontStyle: 'italic' },
+  refreshCaptcha: { fontSize: 24 },
 });
 
 export default SignUpScreen;

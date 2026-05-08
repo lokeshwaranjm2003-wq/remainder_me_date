@@ -111,24 +111,8 @@ router.post('/send-otp', async (req, res) => {
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
-    const { username, email, phoneNumber, password, otp, referralCode } = req.body;
+    const { username, email, phoneNumber, password, referralCode } = req.body;
     const normalizedEmail = email.toLowerCase().trim();
-
-    // Validate OTP from server-side store
-    const stored = otpStore.get(normalizedEmail);
-    if (!stored) {
-      return res.status(400).json({ message: 'OTP not found. Please request a new OTP.' });
-    }
-    if (Date.now() > stored.expiresAt) {
-      otpStore.delete(normalizedEmail);
-      return res.status(400).json({ message: 'OTP has expired. Please request a new one.' });
-    }
-    if (stored.otp !== otp) {
-      return res.status(400).json({ message: 'Invalid OTP.' });
-    }
-
-    // OTP is valid — clear it
-    otpStore.delete(normalizedEmail);
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
