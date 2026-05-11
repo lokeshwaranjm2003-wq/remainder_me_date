@@ -4,6 +4,8 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const cron = require('node-cron');
 const axios = require('axios');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const Reminder = require('./models/Reminder');
 const User = require('./models/User');
 
@@ -12,8 +14,19 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// Security Middleware
+app.use(helmet()); // Set security HTTP headers
+app.use(cors()); // Configure specific origins for production as needed
 app.use(express.json());
+
+// Global Rate Limiting for API routes
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per window
+  message: 'Too many requests from this IP, please try again later.'
+});
+app.use('/api', apiLimiter);
+
 app.use(express.static('public')); // Serve static files for Web UI
 
 // Routes
